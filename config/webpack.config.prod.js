@@ -12,10 +12,10 @@ const eslintFormatter = require('react-dev-utils/eslintFormatter');
 const ModuleScopePlugin = require('react-dev-utils/ModuleScopePlugin');
 const paths = require('./paths');
 const getClientEnvironment = require('./env');
-
+var CommonsChunkPlugin = require("webpack/lib/optimize/CommonsChunkPlugin");
 // Webpack uses `publicPath` to determine where the app is being served from.
 // It requires a trailing slash, or the file assets will get an incorrect path.
-const publicPath = paths.servedPath;
+const publicPath = 'https://cdn.js.com';
 // Some apps do not use client-side routing with pushState.
 // For these, "homepage" can be set to "." to enable relative asset paths.
 const shouldUseRelativeAssetPaths = publicPath === './';
@@ -54,18 +54,18 @@ module.exports = {
   bail: true,
   // We generate sourcemaps in production. This is slow but gives good results.
   // You can exclude the *.map files from the build during deployment.
-  devtool: shouldUseSourceMap ? 'source-map' : false,
+  devtool:  false,
   // In production, we only want to load the polyfills and the app code.
   entry:
     {
-        index:[
-            require.resolve('./polyfills'), 
-            paths.appIndexJs
-        ],
-        admin:[
-            require.resolve('./polyfills'),
-            paths.appSrc+'/admin.js'
-        ]
+      index:[
+        paths.appIndexJs,
+      ],
+      admin:[
+          paths.appSrc + '/admin.js',
+      ],
+      vendor:[require.resolve('./polyfills'),require.resolve('react-dev-utils/webpackHotDevClient'),'react'],
+      common:[paths.appSrc+'/common.js']
     },
   output: {
     path: paths.appBuild,
@@ -118,19 +118,19 @@ module.exports = {
       // First, run the linter.
       // It's important to do this before Babel processes the JS.
       {
-        test: /\.(js|jsx|mjs)$/,
-        enforce: 'pre',
-        use: [
-          {
-            options: {
-              formatter: eslintFormatter,
-              eslintPath: require.resolve('eslint'),
+        // test: /\.(js|jsx|mjs)$/,
+        // enforce: 'pre',
+        // use: [
+        //   {
+        //     options: {
+        //       formatter: eslintFormatter,
+        //       eslintPath: require.resolve('eslint'),
               
-            },
-            loader: require.resolve('eslint-loader'),
-          },
-        ],
-        include: paths.appSrc,
+        //     },
+        //     loader: require.resolve('eslint-loader'),
+        //   },
+        // ],
+        // include: paths.appSrc,
       },
       {
         // "oneOf" will traverse all following loaders until one will
@@ -247,7 +247,7 @@ module.exports = {
     // Generates an `index.html` file with the <script> injected.
     new HtmlWebpackPlugin({
       inject: true,
-      chunks:["index"],
+      chunks:["vendor",'common',"index"],
       template: paths.appHtml,
       minify: {
         removeComments: true,
@@ -264,7 +264,7 @@ module.exports = {
     }),
     new HtmlWebpackPlugin({
       inject: true,
-      chunks:["admin"],
+      chunks:["vendor",'common',"admin"],
       template: paths.appHtml,
       filename:'admin.html',
       minify: {
@@ -352,6 +352,24 @@ module.exports = {
     // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
     // You can remove this if you don't use Moment.js:
     new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+    new CommonsChunkPlugin(
+      {
+      name: 'common',
+      // filename: "vendor.js"
+      // (Give the chunk a different name)
+      chunks: ['common', 'index','admin'],
+      minChunks: 3,
+      // (with more entries, this ensures that no other module
+      //  goes into the vendor chunk)
+    }
+    ),
+    new CommonsChunkPlugin(
+      {
+        name:"vendor",
+        chunks:['vendor'],
+        minChunks:Infinity
+      }
+    )
   ],
   // Some libraries import Node modules but don't use them in the browser.
   // Tell Webpack to provide empty mocks for them so importing them works.
